@@ -9,14 +9,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type key struct {
+type typedAttempt struct {
 	key     string
 	correct bool
 }
 
 type model struct {
 	toType []string
-	typed  []key
+	typed  []typedAttempt
 }
 
 func (m model) keysTyped() string {
@@ -30,12 +30,28 @@ func (m model) keysTyped() string {
 func initialModel() model {
 	return model{
 		toType: generateRandomSentence(),
-		typed:  []key{},
+		typed:  []typedAttempt{},
 	}
 }
 
 func (m model) Init() tea.Cmd {
 	return nil
+}
+
+func (m *model) handleBackspace() {
+	if len(m.typed) > 0 {
+		last := m.typed[len(m.typed)-1]
+		if last.correct {
+			m.toType = append([]string{last.key}, m.toType...)
+		}
+		m.typed = m.typed[:(len(m.typed) - 1)]
+	}
+}
+
+func (m *model) deleteTypedWhile(pred func(string) bool) {
+	for len(m.typed) > 0 && pred(m.typed[len(m.typed)-1].key) {
+		m.handleBackspace()
+	}
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -48,22 +64,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "backspace":
-			// TODO: backspace shouldn't delete good words
-			if len(m.typed) > 0 {
-				m.typed = m.typed[:(len(m.typed) - 1)]
-			}
+			m.handleBackspace()
 
 		case "alt+backspace", "ctrl+w":
-			words := strings.Fields(m.keysTyped())
-			if len(words) == 0 {
-				m.typed = []key{}
-			} else {
-				toKeepLen := len(strings.Join(words[:len(words)-1], " "))
-				m.typed = m.typed[:toKeepLen]
-			}
+			m.deleteTypedWhile(func(c string) bool {
+				return c == " "
+			})
+			m.deleteTypedWhile(func(c string) bool {
+				return c != " "
+			})
 
 		case "ctrl+u", "cmd+backspace":
-			m.typed = []key{}
+			m.typed = []typedAttempt{}
 
 		default:
 			correct := false
@@ -71,7 +83,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.toType = m.toType[1:]
 				correct = true
 			}
-			m.typed = append(m.typed, key{key: keyTyped, correct: correct})
+			m.typed = append(m.typed, typedAttempt{key: keyTyped, correct: correct})
 			if len(m.toType) == 0 {
 				return m, tea.Quit
 			}

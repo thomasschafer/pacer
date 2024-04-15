@@ -23,9 +23,8 @@ func generateRandomWord() []string {
 func generateRandomSentence() []string {
 	res := []string{}
 	for i := 0; i < numberOfWords; i++ {
-		for _, s := range generateRandomWord() {
-			res = append(res, s)
-		}
+		res = append(res, generateRandomWord()...)
+		res = append(res, " ")
 	}
 	return res
 }
