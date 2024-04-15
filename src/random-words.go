@@ -24,7 +24,9 @@ func generateRandomSentence() []string {
 	res := []string{}
 	for i := 0; i < numberOfWords; i++ {
 		res = append(res, generateRandomWord()...)
-		res = append(res, " ")
+		if i != numberOfWords-1 {
+			res = append(res, " ")
+		}
 	}
 	return res
 }
