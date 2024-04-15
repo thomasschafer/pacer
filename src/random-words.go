@@ -2,7 +2,6 @@ package main
 
 import (
 	"math/rand"
-	"strings"
 )
 
 var charSet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@£$%^&*()`-='\\[~_+\"|{},")
@@ -12,19 +11,21 @@ const (
 	numberOfWords = 10
 )
 
-func generateRandomWord() string {
-	length := rand.Intn(maxLength) + 1 // Ensure at least 1 character
-	runes := make([]rune, length)
-	for i := range runes {
-		runes[i] = charSet[rand.Intn(len(charSet))]
+func generateRandomWord() []string {
+	length := rand.Intn(maxLength) + 1
+	res := make([]string, length)
+	for i := range res {
+		res[i] = string(charSet[rand.Intn(len(charSet))])
 	}
-	return string(runes)
+	return res
 }
 
-func generateRandomSentence() string {
+func generateRandomSentence() []string {
 	res := []string{}
 	for i := 0; i < numberOfWords; i++ {
-		res = append(res, generateRandomWord())
+		for _, s := range generateRandomWord() {
+			res = append(res, s)
+		}
 	}
-	return strings.Join(res, " ")
+	return res
 }

@@ -15,7 +15,7 @@ type key struct {
 }
 
 type model struct {
-	toType string
+	toType []string
 	typed  []key
 }
 
@@ -48,6 +48,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "backspace":
+			// TODO: backspace shouldn't delete good words
 			if len(m.typed) > 0 {
 				m.typed = m.typed[:(len(m.typed) - 1)]
 			}
@@ -96,7 +97,7 @@ func (m model) View() string {
 			res += incorrect.Render(v.key)
 		}
 	}
-	res += m.toType
+	res += strings.Join(m.toType, "")
 	return res
 }
 
