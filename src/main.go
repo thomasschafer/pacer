@@ -16,8 +16,9 @@ type typedAttempt struct {
 }
 
 type model struct {
-	toType []string
-	typed  []typedAttempt
+	toType     []string
+	typed      []typedAttempt
+	typedDebug []string // TODO: remove this
 
 	viewport viewport.Model
 	ready    bool
@@ -33,7 +34,7 @@ func (m model) keysTyped() string {
 
 func initialModel() model {
 	return model{
-		toType: generateRandomSentence(),
+		toType: generateRandomSentence(debug), // TODO: allow user to change
 		typed:  []typedAttempt{},
 	}
 }
@@ -66,8 +67,11 @@ var incorrect = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("#24273a")).
 	Background(lipgloss.Color("#ed8796"))
 
+var textBody = lipgloss.NewStyle().
+	Padding(2).
+	Align(lipgloss.Center)
+
 func (m model) content() string {
-	// TODO: use a buffer with .Write
 	var res strings.Builder
 	res.WriteString(strings.Repeat("\n", m.viewport.Height/2-1))
 	for _, v := range m.typed {
@@ -80,13 +84,17 @@ func (m model) content() string {
 	for _, s := range m.toType {
 		res.WriteString(s)
 	}
-	return res.String()
+
+	return textBody.
+		Width(m.viewport.Width).
+		Render(res.String())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		keyTyped := msg.String()
+		m.typedDebug = append(m.typedDebug, "keyTyped: ", keyTyped, ", string(m.toType[0]): ", string(m.toType[0]), " - ")
 
 		switch keyTyped {
 		case "ctrl+c":
@@ -104,15 +112,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 
 		case "ctrl+u", "cmd+backspace":
-			m.typed = []typedAttempt{}
+			m.deleteTypedWhile(func(c string) bool {
+				return true
+			})
 
 		default:
-			correct := false
-			if keyTyped == string(m.toType[0]) {
-				m.toType = m.toType[1:]
-				correct = true
+			for _, c := range keyTyped {
+				correct := string(c) == m.toType[0]
+				if correct {
+					m.toType = m.toType[1:]
+				}
+				m.typed = append(m.typed, typedAttempt{key: string(c), correct: correct})
 			}
-			m.typed = append(m.typed, typedAttempt{key: keyTyped, correct: correct})
+
 			if len(m.toType) == 0 {
 				return m, tea.Quit
 			}
