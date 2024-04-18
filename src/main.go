@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,9 +16,23 @@ type typedAttempt struct {
 	correct bool
 }
 
+type page int
+
+const (
+	typingPage page = iota
+	resultsPage
+)
+
 type model struct {
-	toType []string
-	typed  []typedAttempt
+	toType         []string
+	testWordLength int
+	typed          []typedAttempt
+
+	startTime   time.Time
+	finishTime  time.Time
+	testStarted bool
+
+	currentPage page
 
 	viewport viewport.Model
 	ready    bool
@@ -32,10 +47,19 @@ func (m model) keysTyped() string {
 }
 
 func initialModel() model {
-	return model{
-		toType: generateRandomSentence(top1000),
-		typed:  []typedAttempt{},
-	}
+	m := model{}
+	m.resetState()
+	return m
+}
+
+func (m *model) resetState() {
+	m.toType = generateRandomSentence(top1000)
+	m.testWordLength = len(strings.Fields(strings.Join(m.toType, "")))
+	m.typed = []typedAttempt{}
+	m.startTime = time.Now()
+	m.finishTime = time.Now() // If only Go had a Maybe type
+	m.currentPage = typingPage
+	m.testStarted = false
 }
 
 func (m model) Init() tea.Cmd {
@@ -73,15 +97,24 @@ var textBody = lipgloss.NewStyle().
 func (m model) content() string {
 	var res strings.Builder
 	res.WriteString(strings.Repeat("\n", m.viewport.Height/2-1))
-	for _, v := range m.typed {
-		if v.correct {
-			res.WriteString(correct.Render(v.key))
-		} else {
-			res.WriteString(incorrect.Render(v.key))
+
+	switch m.currentPage {
+	case typingPage:
+		for _, v := range m.typed {
+			if v.correct {
+				res.WriteString(correct.Render(v.key))
+			} else {
+				res.WriteString(incorrect.Render(v.key))
+			}
 		}
-	}
-	for _, s := range m.toType {
-		res.WriteString(s)
+		for _, s := range m.toType {
+			res.WriteString(s)
+		}
+	case resultsPage:
+		timeTakenSecs := float32(m.finishTime.Sub(m.startTime)) / 1e9
+		res.WriteString(fmt.Sprintf("Time taken: %.2fs\n", timeTakenSecs))
+		res.WriteString(fmt.Sprintf("Words per minute: %.2f\n\n", float32(m.testWordLength*60)/timeTakenSecs))
+		res.WriteString("Press enter to start a new test")
 	}
 
 	return textBody.
@@ -89,51 +122,70 @@ func (m model) content() string {
 		Render(res.String())
 }
 
+func (m *model) endTest() {
+	m.currentPage = resultsPage
+	m.finishTime = time.Now()
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		keyTyped := msg.String()
 
-		switch keyTyped {
-		case "ctrl+c":
-			return m, tea.Quit
-
-		case "backspace":
-			m.handleBackspace()
-
-		case "alt+backspace", "ctrl+w":
-			m.deleteTypedWhile(func(c string) bool {
-				return c == " "
-			})
-			m.deleteTypedWhile(func(c string) bool {
-				return c != " "
-			})
-
-		case "ctrl+u", "cmd+backspace":
-			m.deleteTypedWhile(func(c string) bool {
-				return true
-			})
-
-		default:
-			for _, c := range keyTyped {
-				correct := string(c) == m.toType[0]
-				if correct {
-					m.toType = m.toType[1:]
-				}
-				m.typed = append(m.typed, typedAttempt{key: string(c), correct: correct})
+		switch m.currentPage {
+		case typingPage:
+			if !m.testStarted {
+				m.testStarted = true
+				m.startTime = time.Now()
 			}
-
-			if len(m.toType) == 0 {
+			switch keyTyped {
+			case "ctrl+c":
 				return m, tea.Quit
+
+			case "backspace":
+				m.handleBackspace()
+
+			case "alt+backspace", "ctrl+w":
+				m.deleteTypedWhile(func(c string) bool {
+					return c == " "
+				})
+				m.deleteTypedWhile(func(c string) bool {
+					return c != " "
+				})
+
+			case "ctrl+u", "cmd+backspace":
+				m.deleteTypedWhile(func(c string) bool {
+					return true
+				})
+
+			default:
+				for _, c := range keyTyped {
+					if len(m.toType) == 0 {
+						m.endTest()
+					}
+					correct := string(c) == m.toType[0]
+					if correct {
+						m.toType = m.toType[1:]
+					}
+					m.typed = append(m.typed, typedAttempt{key: string(c), correct: correct})
+				}
+				if len(m.toType) == 0 {
+					m.endTest()
+				}
+			}
+		case resultsPage:
+			switch keyTyped {
+			case "ctrl+c", "q":
+				return m, tea.Quit
+			case "enter":
+				m.resetState()
 			}
 		}
+
 	case tea.WindowSizeMsg:
 		if !m.ready {
-			// Since this program is using the full size of the viewport we
-			// need to wait until we've received the window dimensions before
-			// we can initialize the viewport. The initial dimensions come in
-			// quickly, though asynchronously, which is why we wait for them
-			// here.
+			// Wait until we've received the window dimensions before
+			// we can initialize the viewport
 			m.viewport = viewport.New(msg.Width, msg.Height)
 			m.viewport.YPosition = 10
 			m.ready = true

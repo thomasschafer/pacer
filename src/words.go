@@ -10,8 +10,8 @@ import (
 var charSet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@£$%^&*()`-='\\[~_+\"|{},")
 
 const (
-	maxLength     = 10
-	numberOfWords = 10
+	maxLength     = 8
+	numberOfWords = 10 // TODO: allow users to set this
 )
 
 type WordType int
