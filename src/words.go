@@ -19,7 +19,6 @@ type WordType int
 const (
 	random WordType = iota
 	top1000
-	debug
 )
 
 func generateRandomWord() []string {
@@ -56,10 +55,6 @@ func getWordGenFunc(wordType WordType) func() []string {
 		return generateRandomWord
 	case top1000:
 		return getRandomTop1000WordGen()
-	case debug: // TODO: remove this
-		return func() []string {
-			return []string{"e", "x", "a", "c", "t", "l", "y", "£", "-"}
-		}
 	}
 	panic(fmt.Sprintf("Missing case for wordType %v", wordType))
 }

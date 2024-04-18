@@ -16,9 +16,8 @@ type typedAttempt struct {
 }
 
 type model struct {
-	toType     []string
-	typed      []typedAttempt
-	typedDebug []string // TODO: remove this
+	toType []string
+	typed  []typedAttempt
 
 	viewport viewport.Model
 	ready    bool
@@ -34,7 +33,7 @@ func (m model) keysTyped() string {
 
 func initialModel() model {
 	return model{
-		toType: generateRandomSentence(debug), // TODO: allow user to change
+		toType: generateRandomSentence(top1000),
 		typed:  []typedAttempt{},
 	}
 }
@@ -94,7 +93,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		keyTyped := msg.String()
-		m.typedDebug = append(m.typedDebug, "keyTyped: ", keyTyped, ", string(m.toType[0]): ", string(m.toType[0]), " - ")
 
 		switch keyTyped {
 		case "ctrl+c":
