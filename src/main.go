@@ -152,11 +152,11 @@ func (m model) content() string {
 	case helpPage:
 		res.WriteString(strings.Repeat("\n", max(0, m.viewport.Height/2-12)))
 		res.WriteString(
-			"\nAll pages\n" +
+			"\nAll\n" +
 				allPagesHelp.String() +
 				"\n\nTyping test\n" +
 				typingTestHelp.String() +
-				"\n\nOther pages\n" +
+				"\n\nHelp and results\n" +
 				otherPagesHelp.String(),
 		)
 	case resultsPage:
@@ -215,6 +215,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentPage = helpPage
 
 			default:
+				if keyTyped == "enter" {
+					keyTyped = "↵"
+				}
 				for _, c := range keyTyped {
 					if len(m.toType) == 0 {
 						m.endTest()
