@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 )
 
 type typedAttempt struct {
@@ -20,6 +21,7 @@ type page int
 
 const (
 	typingPage page = iota
+	helpPage
 	resultsPage
 )
 
@@ -90,16 +92,53 @@ var incorrect = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("#24273a")).
 	Background(lipgloss.Color("#ed8796"))
 
+var header = lipgloss.NewStyle().
+	BorderBottom(true).
+	BorderStyle(lipgloss.NormalBorder()).
+	Padding(0, 2).
+	Align(lipgloss.Center)
+
+var helpTextStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	PaddingLeft(2).
+	PaddingRight(4).
+	Align(lipgloss.Left)
+
 var textBody = lipgloss.NewStyle().
 	Padding(2).
 	Align(lipgloss.Center)
 
+var tableRow = lipgloss.NewStyle().
+	Width(20).
+	Padding(0, 1)
+
+func buildTable(rows [][]string) *table.Table {
+	return table.New().
+		StyleFunc(func(row, col int) lipgloss.Style { return tableRow }).
+		Rows(rows...)
+}
+
+var allPagesHelp = buildTable([][]string{
+	{"?", "help"},
+	{"ctrl+c", "quit"},
+})
+
+var typingTestHelp = buildTable([][]string{
+	{"tab", "new test"},
+})
+
+var otherPagesHelp = buildTable([][]string{
+	{"enter", "new test"},
+	{"q", "quit"},
+})
+
 func (m model) content() string {
 	var res strings.Builder
-	res.WriteString(strings.Repeat("\n", m.viewport.Height/2-1))
+	res.WriteString(header.Render("PACER\nPress ? for help"))
 
 	switch m.currentPage {
 	case typingPage:
+		res.WriteString(strings.Repeat("\n", max(0, m.viewport.Height/2-3))) // TODO: deduplicate this and remove hard-coded nums
 		for _, v := range m.typed {
 			if v.correct {
 				res.WriteString(correct.Render(v.key))
@@ -110,7 +149,18 @@ func (m model) content() string {
 		for _, s := range m.toType {
 			res.WriteString(s)
 		}
+	case helpPage:
+		res.WriteString(strings.Repeat("\n", max(0, m.viewport.Height/2-12)))
+		res.WriteString(
+			"\nAll pages\n" +
+				allPagesHelp.String() +
+				"\n\nTyping test\n" +
+				typingTestHelp.String() +
+				"\n\nOther pages\n" +
+				otherPagesHelp.String(),
+		)
 	case resultsPage:
+		res.WriteString(strings.Repeat("\n", max(0, m.viewport.Height/2-5)))
 		timeTakenSecs := float32(m.finishTime.Sub(m.startTime)) / 1e9
 		res.WriteString(fmt.Sprintf("Time taken: %.2fs\n", timeTakenSecs))
 		res.WriteString(fmt.Sprintf("Words per minute: %.2f\n\n", float32(m.testWordLength*60)/timeTakenSecs))
@@ -158,6 +208,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return true
 				})
 
+			case "tab":
+				m.resetState()
+
+			case "?":
+				m.currentPage = helpPage
+
 			default:
 				for _, c := range keyTyped {
 					if len(m.toType) == 0 {
@@ -173,12 +229,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.endTest()
 				}
 			}
-		case resultsPage:
+		case helpPage, resultsPage:
 			switch keyTyped {
 			case "ctrl+c", "q":
 				return m, tea.Quit
-			case "enter":
+			case "enter", "esc", "tab":
 				m.resetState()
+			case "?":
+				m.currentPage = helpPage
 			}
 		}
 
