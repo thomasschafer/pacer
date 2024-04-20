@@ -105,7 +105,6 @@ var helpTextStyle = lipgloss.NewStyle().
 	Align(lipgloss.Left)
 
 var textBody = lipgloss.NewStyle().
-	Padding(2).
 	Align(lipgloss.Center)
 
 var tableRow = lipgloss.NewStyle().
@@ -168,6 +167,7 @@ func (m model) content() string {
 	}
 
 	return textBody.
+    Padding(1, m.viewport.Width / 10).
 		Width(m.viewport.Width).
 		Render(res.String())
 }

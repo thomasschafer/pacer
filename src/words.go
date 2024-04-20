@@ -11,7 +11,7 @@ var charSet = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345
 
 const (
 	maxLength     = 8
-	numberOfWords = 10 // TODO: allow users to set this
+	numberOfWords = 20 // TODO: allow users to set this
 )
 
 type WordType int
